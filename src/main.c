@@ -1,36 +1,115 @@
 #include "../include/pipex.h"
 
-int	open_files(char	*file1, char *file)
+char	*get_command_path(char *command, t_pipe *p)
 {
+	char	*path;
 
+	path = NULL;
+	for (int i = 0; p->env[i] != NULL; i++)
+	{
+		if (strncmp(p->env[i], "PATH=", 5) == 0) {
+			path = p->env[i] + 5;
+			break;
+		}
+	}
+	return (find_path(path, command));
 }
 
-int	main(int ac, char **av)
+void	do_execve(int i, int pid, t_pipe *p)
 {
-	int	fd1;
-	int fd2;
-	char *limiter;
+	char	**com;
+	char	*path;
 
-	if (ac >= 5)
+	com = ft_split(p->av[i],' ');
+	path = get_command_path(com[0], p);
+	if (!path)
+		failure("path");
+	if (execve(path, com, p->env) < 0)
+		failure("execve");
+	else if (pid < 0)
+		failure("pid");
+}
+
+void	do_dup(int i, int *pipe_fds, t_pipe *p)
+{
+	if (i + 1 == p->ac)
+	{
+		if (dup2(p->fd2, 1) < 0)
+			failure("dup2");
+	}
+	else if (i + 1 != p->ac)
+	{
+		if (dup2(pipe_fds[i * 2 + 1], 1) < 0)
+			failure("dup2");
+	}
+	if (i != 0)
+	{
+		if (dup2(pipe_fds[i * 2 - 2], 0) < 0)
+			failure("dup2");
+	}
+	else if (i == 0)
+	{
+		if (dup2(p->fd1, 0) < 0)
+			failure("dup2");
+	}
+}
+
+int	do_pipe(t_pipe *p)
+{
+	pid_t	pid;
+	int		*pipe_fds;
+	int		i;
+
+	i = 0;
+	pipe_fds = (int *)malloc(sizeof(int) * 2 * (p->ac - 1));
+	if (!pipe_fds)
+		return (EXIT_FAILURE);
+	generate_pipes(pipe_fds, p->ac - 1);
+	while (i < p->ac)
+	{
+		if ((pid = fork()) == -1)
+			failure("fork");
+		if (pid == 0)
+		{
+			do_dup(i, pipe_fds, p);
+			close_pipes(pipe_fds, 2 * (p->ac - 1));
+			do_execve(i, pid, p);
+		}
+		++i;
+	}
+	close_pipes(pipe_fds, p->ac - 1);
+	free(pipe_fds);
+	for (i = 0; i < p->ac - 1; i++)
+		if (wait(&pid) == -1)
+			failure("wait");
+	return (EXIT_SUCCESS);
+}
+
+int main(int ac, char *av[], char *env[])
+{
+	t_pipe p;
+	
+	p.env = env;
+	if (ac > 4)
 	{
 		if (ft_strncmp(av[1], "here_doc", ft_strlen(av[1])) == 0)
 		{
-			//eventually change this
-			limiter = ft_strdup(av[2]);
-			fd1 = 0;
-			fd2 = open(av[ac - 1], O_WRONLY);
+			p.ac = ac - 4;
+			p.av = av + 3;
+			read_stdin(av[2]);
+			p.fd1 = open("input", O_RDONLY | O_CREAT, 0644);
 		}
 		else
 		{
-			(void)limiter;
-			fd1 = open(av[1], O_RDONLY);
-			fd2 = open(av[ac - 1], O_WRONLY);
+			p.ac = ac - 3;
+			p.av = av + 2;
+			p.fd1 = open(av[1], O_RDONLY | O_CREAT, 0644);	
 		}
-		if (!fd1 || !fd2)
-			return (write(2, "Error\n", 6), NULL);
-		// problem might arrise in bonus case
-		close(fd2);
-		close(fd1);
+		p.fd2 = open(av[ac - 1], O_WRONLY | O_CREAT, 0644);
+		if (do_pipe(&p) == EXIT_FAILURE || !p.fd1 || !p.fd2)
+			return (write(2, "Error\n", ft_strlen("Error\n")), EXIT_FAILURE);
+		close(p.fd2);
+		close(p.fd1);
 	}
-
+	return (unlink("input"), 0);
 }

@@ -2,7 +2,9 @@ CC			= cc
 
 NAME		= pipex
 
-SOURCES =	main.c	\
+SOURCES =	main.c			\
+			pipex_utils.c	\
+			here_doc.c		\
 
 LIBFT		= libft
 
