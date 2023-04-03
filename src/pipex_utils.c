@@ -1,9 +1,22 @@
 #include "../include/pipex.h"
 
-void	failure(const char *message)
+char	*get_command_path(char *command, t_pipe *p)
 {
-	perror(message);
-	exit(EXIT_FAILURE);
+	char	*path;
+	int		i;
+
+	path = NULL;
+	i = 0;
+	while (p->env[i] != NULL)
+	{
+		if (strncmp(p->env[i], "PATH=", 5) == 0)
+		{
+			path = p->env[i] + 5;
+			break ;
+		}
+		i++;
+	}
+	return (find_path(path, command));
 }
 
 void	close_pipes(int *pipe_fds, int num_pipes)

@@ -1,10 +1,9 @@
 #include "../include/pipex.h"
 
-void	init_pipes(int *pipe_fds, int size)
+void	failure(const char *message)
 {
-	pipe_fds = (int *)malloc(sizeof(int) * 2 * size);
-	if (!pipe_fds)
-		failure("init pipes");
+	perror(message);
+	exit(EXIT_FAILURE);
 }
 
 int	ft_max(int a, int b)
@@ -20,7 +19,7 @@ char	*get_rand_name(void)
 	int		cpt;
 	char	*filename;
 
-	fd = 0;
+	fd = -1;
 	cpt = 0;
 	while (fd == -1)
 	{
@@ -29,6 +28,11 @@ char	*get_rand_name(void)
 		if (fd == -1)
 			free(filename);
 		++cpt;
+	}
+	if (fd)
+	{
+		close(fd);
+		unlink(filename);
 	}
 	return (filename);
 }

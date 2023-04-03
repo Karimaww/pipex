@@ -1,24 +1,5 @@
 #include "../include/pipex.h"
 
-char	*get_command_path(char *command, t_pipe *p)
-{
-	char	*path;
-	int		i;
-
-	path = NULL;
-	i = 0;
-	while (p->env[i] != NULL)
-	{
-		if (strncmp(p->env[i], "PATH=", 5) == 0)
-		{
-			path = p->env[i] + 5;
-			break ;
-		}
-		i++;
-	}
-	return (find_path(path, command));
-}
-
 void	do_execve(int i, int pid, t_pipe *p)
 {
 	char	**com;
@@ -58,6 +39,13 @@ void	do_dup(int i, int *pipe_fds, t_pipe *p)
 	}
 }
 
+void	do_smth(int i, int *pipe_fds, t_pipe *p, pid_t pid)
+{
+	do_dup(i, pipe_fds, p);
+	close_pipes(pipe_fds, 2 * (p->ac - 1));
+	do_execve(i, pid, p);
+}
+
 int	do_pipe(t_pipe *p)
 {
 	pid_t	pid;
@@ -65,8 +53,9 @@ int	do_pipe(t_pipe *p)
 	int		i;
 
 	i = 0;
-	pipe_fds = NULL;
-	init_pipes(pipe_fds, p->ac - 1);
+	pipe_fds = (int *)malloc(sizeof(int) * 2 * (p->ac - 1));
+	if (!pipe_fds)
+		return (EXIT_FAILURE);
 	generate_pipes(pipe_fds, p->ac - 1);
 	while (i < p->ac)
 	{
@@ -74,11 +63,7 @@ int	do_pipe(t_pipe *p)
 		if (pid == -1)
 			failure("fork");
 		if (pid == 0)
-		{
-			do_dup(i, pipe_fds, p);
-			close_pipes(pipe_fds, 2 * (p->ac - 1));
-			do_execve(i, pid, p);
-		}
+			do_smth(i, pipe_fds, p, pid);
 		++i;
 	}
 	while (i++ < p->ac - 1)
@@ -94,26 +79,23 @@ int	main(int ac, char *av[], char *env[])
 
 	p.env = env;
 	filename = get_rand_name();
-	if (ac > 4)
+	if (ac <= 4)
+		return (unlink(filename), free(filename), ft_putstr_fd("Error\n", 1), 1);
+	if (ft_strncmp(av[1], "here_doc", ft_strlen(av[1])) == 0)
 	{
-		if (ft_strncmp(av[1], "here_doc", ft_strlen(av[1])) == 0)
-		{
-			p.ac = ac - 4;
-			p.av = av + 3;
-			read_stdin(av[2], filename);
-			p.fd1 = open(filename, O_RDONLY | O_CREAT, 0644);
-		}
-		else
-		{
-			p.ac = ac - 3;
-			p.av = av + 2;
-			p.fd1 = open(av[1], O_RDONLY | O_CREAT, 0644);
-		}
-		p.fd2 = open(av[ac - 1], O_WRONLY | O_CREAT, 0644);
-		if (do_pipe(&p) == EXIT_FAILURE || !p.fd1 || !p.fd2)
-			return (write(2, "Error\n", ft_strlen("Error\n")), EXIT_FAILURE);
-		close(p.fd2);
-		close(p.fd1);
+		p.ac = ac - 4;
+		p.av = av + 3;
+		read_stdin(av[2], filename);
+		p.fd1 = open(filename, O_RDONLY | O_CREAT, 0644);
 	}
-	return (unlink(filename), free(filename), 0);
+	else
+	{
+		p.ac = ac - 3;
+		p.av = av + 2;
+		p.fd1 = open(av[1], O_RDONLY | O_CREAT, 0644);
+	}
+	p.fd2 = open(av[ac - 1], O_WRONLY | O_CREAT, 0644);
+	if (do_pipe(&p) == EXIT_FAILURE || !p.fd1 || !p.fd2)
+		return (unlink(filename), free(filename), ft_putstr_fd("Error\n", 1), 1);
+	return (close(p.fd1), close(p.fd2), unlink(filename), free(filename), 0);
 }
