@@ -17,6 +17,7 @@ void	read_stdin(int fd, char *limiter)
 {
 	char	*line;
 
+	ft_putstr_fd("> ", 1);
 	line = get_next_line(0);
 	while (line && ft_strncmp(line, limiter, ft_max(ft_strlen(line) - 1,
 				ft_strlen(limiter))) != 0)
@@ -24,6 +25,7 @@ void	read_stdin(int fd, char *limiter)
 		if (write(fd, line, ft_strlen(line)) < 0)
 			failure("write failed");
 		free(line);
+		ft_putstr_fd("> ", 1);
 		line = get_next_line(0);
 	}
 	if (line)

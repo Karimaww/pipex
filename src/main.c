@@ -69,12 +69,30 @@ void	do_smth(int i, int *pipe_fds, t_pipe *p, pid_t pid)
 	do_execve(i, pid, p);
 }
 
+void	close_pipe_cmd(t_pipe *p, int i)
+{
+	if (i + 1 == p->n_cmd)
+	{
+		if (p->fd2 >= 0)
+			close(p->fd2);
+	}
+	else
+		close(p->pipe_fds[i * 2 + 1]);
+	if (i != 0)
+		close(p->pipe_fds[i * 2 - 2]);
+	else
+	{
+		if (p->fd1 >= 0)
+			close(p->fd1);
+	}
+}
+
 int	do_pipe(t_pipe *p)
 {
 	int		i;
 
 	i = 0;
-	p->pid = (pid_t *)malloc(sizeof(int) * (p->n_cmd - 1)); // a free
+	p->pid = (pid_t *)malloc(sizeof(pid_t) * p->n_cmd); // a free
 	p->pipe_fds = (int *)malloc(sizeof(int) * 2 * (p->n_cmd - 1));
 	if (!p->pipe_fds || !p->pid)
 		return (EXIT_FAILURE);
@@ -86,12 +104,13 @@ int	do_pipe(t_pipe *p)
 			failure("fork");
 		if (p->pid[i] == 0)
 			do_smth(i, p->pipe_fds, p, p->pid[i]);
+		close_pipe_cmd(p, i);
 		++i;
 	}
 	i = 0;
-	while (i++ < p->n_cmd - 1)
-		waitpid(p->pid[i], NULL, 0);
-	return (close_pipes(p->pipe_fds, p->n_cmd - 1), free(p->pipe_fds), EXIT_SUCCESS);
+	while (i < p->n_cmd)
+		waitpid(p->pid[i++], NULL, 0);
+	return (free(p->pipe_fds), EXIT_SUCCESS);
 }
 
 int	main(int ac, char *av[], char *env[])
@@ -101,6 +120,8 @@ int	main(int ac, char *av[], char *env[])
 	p.ac = ac;
 	p.av = av;
 	p.env = env;
+	p.fd1 = -2;
+	p.fd2 = -2;
 	if (ac <= 4)
 		return (ft_putstr_fd("Error\n", 1), 1);
 	if (ft_strncmp(av[1], "here_doc", ft_strlen(av[1])) == 0)
@@ -115,5 +136,10 @@ int	main(int ac, char *av[], char *env[])
 	}
 	if (do_pipe(&p) == EXIT_FAILURE)
 		return (perror("pipe"), 1);
-	return (close(p.fd1), close(p.fd2), 0);
+	if (p.here_doc)
+	{
+		close(p.here_doc[0]);
+		free(p.here_doc);
+	}
+	return (free(p.pid), 0);
 }

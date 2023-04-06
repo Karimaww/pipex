@@ -62,9 +62,7 @@ char	*find_path(char *path, char *command)
 	char	*start;
 	char	*end;
 	char	*filepath;
-	int		len;
 
-	len = 0;
 	start = path;
 	while (*start)
 	{
@@ -72,7 +70,7 @@ char	*find_path(char *path, char *command)
 		while (*end && *end != ':')
 			end++;
 		filepath = (char *)malloc(sizeof(char)
-				* (len + 2 + ft_strlen(command)));
+				* ((end - start) + 2 + ft_strlen(command)));
 		if (!filepath)
 			return (NULL);
 		if (do_search_com(start, end, command, filepath) == EXIT_SUCCESS)
