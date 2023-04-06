@@ -13,39 +13,11 @@ int	ft_max(int a, int b)
 	return (b);
 }
 
-char	*get_rand_name(void)
-{
-	int		fd;
-	int		cpt;
-	char	*filename;
-
-	fd = -1;
-	cpt = 0;
-	while (fd == -1)
-	{
-		filename = ft_itoa(cpt);
-		fd = open(filename, O_CREAT | O_EXCL | O_RDWR, 0644);
-		if (fd == -1)
-			free(filename);
-		++cpt;
-	}
-	if (fd)
-	{
-		close(fd);
-		unlink(filename);
-	}
-	return (filename);
-}
-
-int	read_stdin(char *limiter, char *filename)
+void	read_stdin(int fd, char *limiter)
 {
 	char	*line;
-	int		fd;
 
 	line = get_next_line(0);
-	fd = open(filename, O_WRONLY | O_CREAT | O_EXCL, 0644);
-	if (fd < 0)
-		failure("open failed");
 	while (line && ft_strncmp(line, limiter, ft_max(ft_strlen(line) - 1,
 				ft_strlen(limiter))) != 0)
 	{
@@ -57,5 +29,13 @@ int	read_stdin(char *limiter, char *filename)
 	if (line)
 		free(line);
 	close(fd);
-	return (fd);
+}
+
+int	open_here_doc(t_pipe *p)
+{
+	p->here_doc = malloc(sizeof(int) * 2);
+	if (pipe(p->here_doc) < 0)
+		failure("pipe");
+	read_stdin(p->here_doc[1], p->av[2]);
+	return (EXIT_SUCCESS);
 }

@@ -5,7 +5,7 @@ void	do_execve(int i, int pid, t_pipe *p)
 	char	**com;
 	char	*path;
 
-	com = ft_split(p->av[i], ' ');
+	com = ft_split(p->av[i + 2 + (p->here_doc != NULL)], ' ');
 	path = get_command_path(com[0], p);
 	if (!path)
 		failure("path");
@@ -17,12 +17,12 @@ void	do_execve(int i, int pid, t_pipe *p)
 
 void	do_dup(int i, int *pipe_fds, t_pipe *p)
 {
-	if (i + 1 == p->ac)
+	if (i + 1 == p->n_cmd)
 	{
 		if (dup2(p->fd2, 1) < 0)
 			failure("dup2");
 	}
-	else if (i + 1 != p->ac)
+	else if (i + 1 != p->n_cmd)
 	{
 		if (dup2(pipe_fds[i * 2 + 1], 1) < 0)
 			failure("dup2");
@@ -39,63 +39,81 @@ void	do_dup(int i, int *pipe_fds, t_pipe *p)
 	}
 }
 
+void	files_open_option(t_pipe *p, int i)
+{
+	if (i == 0)
+	{
+		if (!p->here_doc)
+			p->fd1 = open(p->av[1], O_RDONLY, 0644);
+		else
+			p->fd1 = p->here_doc[0];
+		if (p->fd1 == -1)
+			failure(p->av[1]);
+	}
+	if (i == p->n_cmd - 1)
+	{
+		if (!p->here_doc)
+			p->fd2 = open(p->av[p->ac - 1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		else
+			p->fd2 = open(p->av[p->ac - 1], O_WRONLY | O_CREAT | O_APPEND, 0644);
+		if (p->fd2 == -1)
+			failure(p->av[p->ac - 1]);
+	}
+}
+
 void	do_smth(int i, int *pipe_fds, t_pipe *p, pid_t pid)
 {
+	files_open_option(p, i);
 	do_dup(i, pipe_fds, p);
-	close_pipes(pipe_fds, 2 * (p->ac - 1));
+	close_pipes(pipe_fds, 2 * (p->n_cmd - 1));
 	do_execve(i, pid, p);
 }
 
 int	do_pipe(t_pipe *p)
 {
-	pid_t	pid;
-	int		*pipe_fds;
 	int		i;
 
 	i = 0;
-	pipe_fds = (int *)malloc(sizeof(int) * 2 * (p->ac - 1));
-	if (!pipe_fds)
+	p->pid = (pid_t *)malloc(sizeof(int) * (p->n_cmd - 1)); // a free
+	p->pipe_fds = (int *)malloc(sizeof(int) * 2 * (p->n_cmd - 1));
+	if (!p->pipe_fds || !p->pid)
 		return (EXIT_FAILURE);
-	generate_pipes(pipe_fds, p->ac - 1);
-	while (i < p->ac)
+	generate_pipes(p->pipe_fds, p->n_cmd - 1);
+	while (i < p->n_cmd)
 	{
-		pid = fork();
-		if (pid == -1)
+		p->pid[i] = fork();
+		if (p->pid[i] == -1)
 			failure("fork");
-		if (pid == 0)
-			do_smth(i, pipe_fds, p, pid);
+		if (p->pid[i] == 0)
+			do_smth(i, p->pipe_fds, p, p->pid[i]);
 		++i;
 	}
-	while (i++ < p->ac - 1)
-		if (wait(&pid) == -1)
-			failure("wait");
-	return (close_pipes(pipe_fds, p->ac - 1), free(pipe_fds), EXIT_SUCCESS);
+	i = 0;
+	while (i++ < p->n_cmd - 1)
+		waitpid(p->pid[i], NULL, 0);
+	return (close_pipes(p->pipe_fds, p->n_cmd - 1), free(p->pipe_fds), EXIT_SUCCESS);
 }
 
 int	main(int ac, char *av[], char *env[])
 {
 	t_pipe	p;
-	char	*filename;
 
+	p.ac = ac;
+	p.av = av;
 	p.env = env;
-	filename = get_rand_name();
 	if (ac <= 4)
-		return (unlink(filename), free(filename), ft_putstr_fd("Error\n", 1), 1);
+		return (ft_putstr_fd("Error\n", 1), 1);
 	if (ft_strncmp(av[1], "here_doc", ft_strlen(av[1])) == 0)
 	{
-		p.ac = ac - 4;
-		p.av = av + 3;
-		read_stdin(av[2], filename);
-		p.fd1 = open(filename, O_RDONLY | O_CREAT, 0644);
+		p.n_cmd = ac - 4;
+		open_here_doc(&p);
 	}
 	else
 	{
-		p.ac = ac - 3;
-		p.av = av + 2;
-		p.fd1 = open(av[1], O_RDONLY | O_CREAT, 0644);
+		p.here_doc = NULL;
+		p.n_cmd = ac - 3;
 	}
-	p.fd2 = open(av[ac - 1], O_WRONLY | O_CREAT, 0644);
-	if (do_pipe(&p) == EXIT_FAILURE || !p.fd1 || !p.fd2)
-		return (unlink(filename), free(filename), ft_putstr_fd("Error\n", 1), 1);
-	return (close(p.fd1), close(p.fd2), unlink(filename), free(filename), 0);
+	if (do_pipe(&p) == EXIT_FAILURE)
+		return (perror("pipe"), 1);
+	return (close(p.fd1), close(p.fd2), 0);
 }

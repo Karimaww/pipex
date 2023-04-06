@@ -13,6 +13,10 @@ typedef struct	s_pipe
 	char	**av;
 	char	**env;
 	int		ac;
+	int		n_cmd;
+	int		*here_doc;
+	int		*pipe_fds;
+	pid_t	*pid;
 	int		fd1;
 	int		fd2;
 }	t_pipe;
@@ -23,6 +27,6 @@ void	close_pipes(int *pipe_fds, int num_pipes);
 void	generate_pipes(int *pipe_fds, int num_pipes);
 int		do_search_com(char *start, char *end, char *command, char *filepath);
 char	*find_path(char *path, char *command);
-int		read_stdin(char *limiter, char *filename);
-char	*get_rand_name(void);
+void	read_stdin(int fd, char *limiter);
+int		open_here_doc(t_pipe *p);
 #endif
