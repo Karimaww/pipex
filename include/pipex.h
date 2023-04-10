@@ -29,4 +29,6 @@ int		do_search_com(char *start, char *end, char *command, char *filepath);
 char	*find_path(char *path, char *command);
 void	read_stdin(int fd, char *limiter);
 int		open_here_doc(t_pipe *p);
+int		do_pipe(t_pipe *p);
+void	do_execve(int i, int pid, t_pipe *p);
 #endif

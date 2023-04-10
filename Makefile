@@ -4,6 +4,7 @@ NAME		= pipex
 
 SOURCES =	main.c			\
 			pipex_utils.c	\
+			pipex_utils2.c	\
 			here_doc.c		\
 
 LIBFT		= libft
@@ -23,6 +24,8 @@ OBJS =	$(addprefix $(OBJ_DIR)/,$(SOURCES:.c=.o))
 
 all: lib obj $(NAME)
 
+bonus: lib obj $(NAME)
+
 lib:
 	@make -C $(LIBFT)
 
@@ -34,8 +37,6 @@ $(NAME): $(OBJS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(INCLUDE)/pipex.h Makefile
 	$(CC) $(CFLAGS) -I $(INCLUDE) -c $< -o $@
-
-bonus: $(NAME)
 
 clean:
 	make clean -C $(LIBFT)
