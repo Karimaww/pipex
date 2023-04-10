@@ -8,7 +8,7 @@
 # include <sys/wait.h>
 # include "../libft/libft.h"
 
-typedef struct	s_pipe
+typedef structs_pipe
 {
 	char	**av;
 	char	**env;
