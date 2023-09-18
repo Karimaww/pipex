@@ -2,6 +2,8 @@
 
 Because we are better than everybody.
 
+This C project aims to replicate the functionality of pipes within a shell environment.The project provides a mechanism for creating pipes and connecting the standard output of one process to the standard input of another.
+
 In the bonus there is this part:
 
 ```sh
